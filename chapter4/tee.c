@@ -13,6 +13,10 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#ifndef BUF_SIZE // cc -D重定义
+#define BUF_SIZE 1024
+#endif
+
 void usage(const char *bin) {
 	printf("%s [-a filename|filename]\n", bin);
 	exit(EXIT_FAILURE);
@@ -48,18 +52,14 @@ int main(int argc, char **argv) {
 		if(fd == -1) errorHandle("open");
 	}
 
-	char buffer[1024];
+	char buffer[BUF_SIZE];
 	ssize_t numRead = -1;
-	while(numRead != 0) { // <C-D>
-		numRead = read(STDIN_FILENO, buffer, sizeof(buffer));
-		if(numRead == -1) errorHandle("read");
-		ssize_t numWrite = write(STDOUT_FILENO, buffer, numRead);
-		if(numWrite == -1) errorHandle("write");
-		if(fd != -1) {
-			ssize_t numWrite = write(fd, buffer, numRead);
-			if(numWrite == -1) errorHandle("write");
-		}
+	while((numRead = read(STDIN_FILENO, buffer, sizeof(buffer))) > 0) { // <C-D>
+		if(write(STDOUT_FILENO, buffer, numRead) != numRead) errorHandle("couldn't write whole buffer");
+		if(fd != -1)
+			if(write(fd, buffer, numRead) != numRead) errorHandle("couldn't write whole buffer");
 	}
+	if(numRead == -1) errorHandle("read");
 	if(fd != -1 && close(fd) == -1) errorHandle("close");
 
 	return 0;
